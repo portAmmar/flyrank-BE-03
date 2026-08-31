@@ -1,15 +1,31 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import sqlite3
+import os
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
 
 app = FastAPI()
 
+load_dotenv()
+
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
+    print("Server running and connected to Supabase")
+
+    
 
 
 class Task(BaseModel):
     title: str
     done: bool = False
-    
+
 
 def init_db():
     conn = sqlite3.connect("tasks.db")
@@ -49,7 +65,7 @@ def read_root():
             "enpoints":["/tasks"]
             }
 
-@app.get("health")
+@app.get("/health")
 def test_server_health():
     return {"status": "ok"}
 
@@ -68,7 +84,7 @@ def get_task_by_id(task_id: int):
     conn = sqlite3.connect("tasks.db")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT id, title, done FROM tasks WHERE id = ?", (id,))
+    cursor.execute("SELECT id, title, done FROM tasks WHERE id = ?", (task_id,))
     row = cursor.fetchone()
     conn.close()
 
