@@ -5,6 +5,8 @@ import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from fastapi import Header
+from fastapi import Depends, Response
+
 
 app = FastAPI()
 
@@ -68,6 +70,20 @@ def read_root():
 def test_server_health():
     return {"status": "ok"}
 
+def verify_auth_token(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail={"error": "Access token required"})
+
+    token = authorization.split(" ")[1]
+    if not token:
+        raise HTTPException(status_code=401, detail={"error": "Access token required"})
+
+    try:
+        user_response = supabase.auth.get_user(token)
+        return {"user": user_response.user, "token": token}
+    except Exception:
+        raise HTTPException(status_code=401, detail={"error": "Invalid or expired token"})
+
 @app.post("/auth/signup", status_code=201)
 def signup(credentials: AuthCredentials):
     if not credentials.email or not credentials.password:
@@ -105,24 +121,29 @@ def public_info():
     return {"message": "Welcome stranger! This info is public."}
 
 @app.get("/protected/profile", status_code=200)
-def protected_profile(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail={"error": "Access token required"})
+def protected_profile(auth_data: dict = Depends(verify_auth_token)):
+    return {
+        "status": "success",
+        "user": auth_data["user"]
+    }
 
-    token = authorization.split(" ")[1]
-    if not token:
-        raise HTTPException(status_code=401, detail={"error": "Access token required"})
+@app.get("/protected/dashboard", status_code=200)
+def protected_dashboard(auth_data: dict = Depends(verify_auth_token)):
+    return {
+        "status": "success",
+        "message": "Welcome to the secure dashboard",
+        "user": auth_data["user"]
+    }
 
+@app.post("/auth/logout", status_code=204)
+def logout(auth_data: dict = Depends(verify_auth_token)):
     try:
-        user_response = supabase.auth.get_user(token)
-        return {
-            "status": "success",
-            "user": user_response.user
-        }
+        supabase.auth.sign_out()
+        return Response(status_code=204)
     except Exception:
-        raise HTTPException(status_code=401, detail={"error": "Invalid or expired token"})
-
-
+        raise HTTPException(status_code=400, detail={"error": "Logout failed"})
+        
+            
 @app.get("/tasks")
 def get_all_tasks():
     conn = sqlite3.connect("tasks.db")
