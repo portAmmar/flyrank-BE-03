@@ -28,7 +28,7 @@ tasks = [
                 "done": False
         }
     ]
-    
+
 def init_db():
     conn = sqlite3.connect("tasks.db")
     cursor = conn.cursor()
@@ -100,17 +100,19 @@ async def create_task(task: Task):
     if not task.title:
         raise HTTPException(status_code=400, detail="Title is missing")
 
-    task = {
-            "id": tasks[-1]["id"] + 1,
-            "title": task.title ,
-            "done": False,
-            }
-    tasks.append(task) 
+    conn = sqlite3.connect("tasks.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO tasks (title, done) VALUES (?, ?)", (task.title, int(task.done)))
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+
     return {
-            "status": "ok",
-            "code": 201,
-            "msg": "task Created"
-            }
+        "status": "ok",
+        "code": 201,
+        "msg": "task Created",
+        "id": new_id
+    }
 
 @app.put("/tasks/{id}")
 async def update_task(id: int, task: Task):
