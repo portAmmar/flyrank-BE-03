@@ -116,35 +116,37 @@ async def create_task(task: Task):
 
 @app.put("/tasks/{id}")
 async def update_task(id: int, task: Task):
-    if not id:
-        return {
-            "status": "bad",
-            "code": 404,
-            "msg": "id is not enterd, pls enter a valid id"
-            }
-    for task_loop in tasks:
-        if task_loop["id"] == id:
-            task_loop["title"] = task.title
-            return {
-            "status": "ok",
-            "code": 201,
-            "msg": "task updated"
-            }
-    raise HTTPException(status_code=404, detail="Task not found")
+    conn = sqlite3.connect("tasks.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM tasks WHERE id = ?", (id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail={"error": "Task not found"})
+
+    cursor.execute("UPDATE tasks SET title = ?, done = ? WHERE id = ?", (task.title, int(task.done), id))
+    conn.commit()
+    conn.close()
+    return {
+        "status": "ok",
+        "code": 200,
+        "msg": "task updated"
+    }
 
 @app.delete("/tasks/{id}")
 async def delete_task(id: int):
-    if not id:
-        return {
-            "status": "bad",
-            "code": 404,
-            "msg": "id is not enterd, pls enter a valid id"
-            }
-    for task in tasks:
-        if task["id"] == id:
-            tasks.remove(task)
+    conn = sqlite3.connect("tasks.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM tasks WHERE id = ?", (id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail={"error": "Task not found"})
+
+    cursor.execute("DELETE FROM tasks WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
     return {
-            "status": "ok",
-            "code": 200,
-            "msg": "task removed"
-            }
+        "status": "ok",
+        "code": 200,
+        "msg": "task removed"
+    }
+
