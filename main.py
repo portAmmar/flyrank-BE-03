@@ -9,25 +9,7 @@ app = FastAPI()
 class Task(BaseModel):
     title: str
     done: bool = False
-
-tasks = [
-        {
-                "id": 1,
-                "title": "first task",
-                "done": False
-
-        },
-        {
-                "id": 2,
-                "title": "task 2",
-                "done": False
-        },
-        {
-                "id": 3,
-                "title": "task 3",
-                "done": False
-        }
-    ]
+    
 
 def init_db():
     conn = sqlite3.connect("tasks.db")
