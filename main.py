@@ -28,7 +28,7 @@ tasks = [
                 "done": False
         }
     ]
-
+    
 def init_db():
     conn = sqlite3.connect("tasks.db")
     cursor = conn.cursor()
@@ -73,13 +73,26 @@ def test_server_health():
 
 @app.get("/tasks")
 def get_all_tasks():
-    return tasks
+    conn = sqlite3.connect("tasks.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, done FROM tasks")
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 @app.get("/task/{task_id}")
 def get_task_by_id(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
+    conn = sqlite3.connect("tasks.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, done FROM tasks WHERE id = ?", (id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail={"error": "Task not found"})
+    return dict(row)
 
 
 @app.post("/tasks")
