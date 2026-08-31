@@ -4,7 +4,7 @@ import sqlite3
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
-
+from fastapi import Header
 
 app = FastAPI()
 
@@ -100,6 +100,22 @@ def login(credentials: AuthCredentials):
         raise HTTPException(status_code=401, detail={"error": "Invalid login credentials"})
 
 
+@app.get("/public/info", status_code=200)
+def public_info():
+    return {"message": "Welcome stranger! This info is public."}
+
+@app.get("/protected/profile", status_code=200)
+def protected_profile(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail={"error": "Access token required"})
+
+    token = authorization.split(" ")[1]
+    if not token:
+        raise HTTPException(status_code=401, detail={"error": "Access token required"})
+
+    return {"message": "Authorized", "token": token}
+
+    
 @app.get("/tasks")
 def get_all_tasks():
     conn = sqlite3.connect("tasks.db")
