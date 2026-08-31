@@ -113,9 +113,16 @@ def protected_profile(authorization: str = Header(None)):
     if not token:
         raise HTTPException(status_code=401, detail={"error": "Access token required"})
 
-    return {"message": "Authorized", "token": token}
+    try:
+        user_response = supabase.auth.get_user(token)
+        return {
+            "status": "success",
+            "user": user_response.user
+        }
+    except Exception:
+        raise HTTPException(status_code=401, detail={"error": "Invalid or expired token"})
 
-    
+
 @app.get("/tasks")
 def get_all_tasks():
     conn = sqlite3.connect("tasks.db")
