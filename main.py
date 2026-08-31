@@ -6,10 +6,11 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from fastapi import Header
 from fastapi import Depends, Response
-
+from fastapi.security import HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials
 
 app = FastAPI()
-
+security = HTTPBearer()
 load_dotenv()
 
 url: str = os.environ.get("SUPABASE_URL")
@@ -70,19 +71,14 @@ def read_root():
 def test_server_health():
     return {"status": "ok"}
 
-def verify_auth_token(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail={"error": "Access token required"})
-
-    token = authorization.split(" ")[1]
-    if not token:
-        raise HTTPException(status_code=401, detail={"error": "Access token required"})
-
+def verify_auth_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
     try:
         user_response = supabase.auth.get_user(token)
         return {"user": user_response.user, "token": token}
     except Exception:
         raise HTTPException(status_code=401, detail={"error": "Invalid or expired token"})
+        
 
 @app.post("/auth/signup", status_code=201)
 def signup(credentials: AuthCredentials):
@@ -142,8 +138,8 @@ def logout(auth_data: dict = Depends(verify_auth_token)):
         return Response(status_code=204)
     except Exception:
         raise HTTPException(status_code=400, detail={"error": "Logout failed"})
-        
-            
+
+
 @app.get("/tasks")
 def get_all_tasks():
     conn = sqlite3.connect("tasks.db")
