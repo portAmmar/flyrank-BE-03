@@ -20,7 +20,9 @@ def startup_event():
     print("Server running and connected to Supabase")
 
     
-
+class AuthCredentials(BaseModel):
+    email: str
+    password: str
 
 class Task(BaseModel):
     title: str
@@ -53,9 +55,6 @@ def init_db():
 
     conn.close()
 
-@app.on_event("startup")
-def startup_event():
-    init_db()
 
 @app.get("/")
 def read_root():
@@ -68,6 +67,38 @@ def read_root():
 @app.get("/health")
 def test_server_health():
     return {"status": "ok"}
+
+@app.post("/auth/signup", status_code=201)
+def signup(credentials: AuthCredentials):
+    if not credentials.email or not credentials.password:
+        raise HTTPException(status_code=400, detail="Bad Request")
+
+    try:
+        response = supabase.auth.sign_up({
+            "email": credentials.email,
+            "password": credentials.password
+        })
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/auth/login", status_code=200)
+def login(credentials: AuthCredentials):
+    if not credentials.email or not credentials.password:
+        raise HTTPException(status_code=400, detail="Bad Request")
+
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": credentials.email,
+            "password": credentials.password
+        })
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token
+        }
+    except Exception:
+        raise HTTPException(status_code=401, detail={"error": "Invalid login credentials"})
+
 
 @app.get("/tasks")
 def get_all_tasks():
